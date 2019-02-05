@@ -31,11 +31,6 @@ type Server struct {
 
 //Send Send to client
 func (s *Server) Send(node *Node, message []byte) {
-	fmt.Println(node.deadline, time.Now().Unix())
-	if node.deadline < time.Now().Unix() {
-		s.Delete(node)
-		return
-	}
 	_, err := s.conn.WriteToUDP(message, node.addr)
 	if err != nil {
 		return
@@ -49,7 +44,7 @@ func (s *Server) Delete(node *Node) {
 }
 
 //Run server
-func (s *Server) Run(port uint16) (err error) {
+func (s *Server) Run(port uint16, timeDeadLine time.Duration) (err error) {
 	s.hub = make(map[Session]*Node)
 	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
@@ -60,7 +55,12 @@ func (s *Server) Run(port uint16) (err error) {
 		return err
 	}
 	defer s.conn.Close()
-
+	ticker := time.NewTicker(timeDeadLine)
+	go func() {
+		for range ticker.C {
+			s.clearDeadLine()
+		}
+	}()
 	buffer := make([]byte, maxBufferSize)
 	for {
 		var node *Node
@@ -79,7 +79,16 @@ func (s *Server) Run(port uint16) (err error) {
 		} else {
 			node = s.hub[session]
 		}
-		node.deadline = time.Now().Unix() + 5
+		node.deadline = time.Now().Add(timeDeadLine).Unix()
 		s.IsRead(node, buffer[0:n])
+	}
+}
+
+func (s *Server) clearDeadLine() {
+	now := time.Now().Unix()
+	for _, n := range s.hub {
+		if n.deadline < now {
+			s.Delete(n)
+		}
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"mUDP"
+	"time"
 )
 
 func main() {
@@ -19,7 +20,7 @@ func main() {
 		server.Send(node, b)
 	}
 	log.Println("start server in:", port)
-	if err := server.Run(port); err != nil {
+	if err := server.Run(port, time.Duration(10*time.Second)); err != nil {
 		panic(err)
 	}
 }

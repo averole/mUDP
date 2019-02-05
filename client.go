@@ -5,8 +5,8 @@ import (
 )
 
 type Client struct {
-	conn   *net.UDPConn
-	IsRead func([]byte)
+	conn    *net.UDPConn
+	isClose bool
 }
 
 func (c *Client) Send(message []byte) error {
@@ -14,38 +14,32 @@ func (c *Client) Send(message []byte) error {
 	return err
 }
 
-func (c *Client) Run(adres string) {
+func NewClient(adres string) *Client {
 	udpAddr, err := net.ResolveUDPAddr("udp", adres)
 	if err != nil {
 		panic(err)
 	}
-	c.conn, err = net.DialUDP("udp", nil, udpAddr)
+	conn, err := net.DialUDP("udp", nil, udpAddr)
 	if err != nil {
 		panic(err)
 	}
-	defer c.conn.Close()
+	return &Client{conn: conn, isClose: false}
+}
+func (c *Client) Close() {
+	c.isClose = false
+	c.conn.Close()
+}
+
+func (c *Client) Listen(read func([]byte)) {
 	buffer := make([]byte, maxBufferSize)
 	for {
+		if c.isClose == true {
+			return
+		}
 		n, err := c.conn.Read(buffer)
 		if err != nil {
 			panic(err)
 		}
-		c.IsRead(buffer[0:n])
+		read(buffer[0:n])
 	}
 }
-
-// func (c *Client) handle() {
-// 	buf := make([]byte, maxBufferSize)
-// 	n, err := c.conn.Read(buf[0:])
-// 	if err != nil {
-// 		c.IsError(err) //Выполняем обратную функцию
-// 		return
-// 	}
-// 	if n >= maxBufferSize {
-// 		c.IsError(errors.New("Max BufSize")) //Выполняем обратную функцию
-// 		return
-// 	}
-
-// 	//Выполняем обратную функцию
-// 	c.IsRead(buf[0:n])
-// }
