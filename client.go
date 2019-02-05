@@ -1,56 +1,51 @@
 package mUDP
 
 import (
-	"errors"
 	"net"
 )
 
 type Client struct {
-	*Config
-	conn      *net.UDPConn
-	IsConnect func()
-	IsRead    func([]byte)
-	IsError   func(error)
+	conn   *net.UDPConn
+	IsRead func([]byte)
 }
 
-func (c *Client) Send(message []byte) {
+func (c *Client) Send(message []byte) error {
 	_, err := c.conn.Write(message)
-	if err != nil {
-		c.IsError(err)
-	}
+	return err
 }
 
-func (c *Client) Run(conf *Config) {
-	c.Config = conf
-	udpAddr, err := net.ResolveUDPAddr("udp", c.Host+":"+c.Port)
+func (c *Client) Run(adres string) {
+	udpAddr, err := net.ResolveUDPAddr("udp", adres)
 	if err != nil {
-		c.IsError(err)
-		return
+		panic(err)
 	}
 	c.conn, err = net.DialUDP("udp", nil, udpAddr)
 	if err != nil {
-		c.IsError(err)
-		return
+		panic(err)
 	}
 	defer c.conn.Close()
-	c.IsConnect()
+	buffer := make([]byte, maxBufferSize)
 	for {
-		c.handle()
+		n, err := c.conn.Read(buffer)
+		if err != nil {
+			panic(err)
+		}
+		c.IsRead(buffer[0:n])
 	}
 }
 
-func (c *Client) handle() {
-	buf := make([]byte, c.BufSize)
-	n, err := c.conn.Read(buf[0:])
-	if err != nil {
-		c.IsError(err) //Выполняем обратную функцию
-		return
-	}
-	if n >= c.BufSize {
-		c.IsError(errors.New("Max BufSize")) //Выполняем обратную функцию
-		return
-	}
+// func (c *Client) handle() {
+// 	buf := make([]byte, maxBufferSize)
+// 	n, err := c.conn.Read(buf[0:])
+// 	if err != nil {
+// 		c.IsError(err) //Выполняем обратную функцию
+// 		return
+// 	}
+// 	if n >= maxBufferSize {
+// 		c.IsError(errors.New("Max BufSize")) //Выполняем обратную функцию
+// 		return
+// 	}
 
-	//Выполняем обратную функцию
-	c.IsRead(buf[0:n])
-}
+// 	//Выполняем обратную функцию
+// 	c.IsRead(buf[0:n])
+// }
